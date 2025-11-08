@@ -44,9 +44,17 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
     const tempCtx = tempCanvas.getContext("2d")
     if (!tempCtx) return null
 
-    // Reduce dimensions by 50%
-    tempCanvas.width = canvas.width * 0.5
-    tempCanvas.height = canvas.height * 0.5
+    // Get the actual canvas dimensions (already includes DPI scaling)
+    const sourceWidth = canvas.width
+    const sourceHeight = canvas.height
+
+    // Set temp canvas to 50% of source dimensions
+    tempCanvas.width = sourceWidth * 0.5
+    tempCanvas.height = sourceHeight * 0.5
+
+    // Fill with white background (JPEG doesn't support transparency)
+    tempCtx.fillStyle = "#ffffff"
+    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
 
     // Draw the original canvas scaled down
     tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height)
@@ -59,6 +67,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
     if (!sessionStarted) return
 
     const canvasData = getCompressedCanvasAsBase64()
+
     sendStateUpdate({
       canvas: canvasData || undefined,
       transcript: undefined,
