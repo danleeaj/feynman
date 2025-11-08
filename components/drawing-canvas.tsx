@@ -15,6 +15,8 @@ export default function DrawingCanvas() {
   const [textInput, setTextInput] = useState("")
   const [textPosition, setTextPosition] = useState<{ x: number; y: number } | null>(null)
   const [showTextInput, setShowTextInput] = useState(false)
+  const [sessionStarted, setSessionStarted] = useState(false)
+  const [elapsedTime, setElapsedTime] = useState(0)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -53,6 +55,16 @@ export default function DrawingCanvas() {
       resizeObserver.disconnect()
     }
   }, [])
+
+  useEffect(() => {
+    if (!sessionStarted) return
+
+    const interval = setInterval(() => {
+      setElapsedTime((prev) => prev + 1)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [sessionStarted])
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -133,11 +145,34 @@ export default function DrawingCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
+  const toggleSession = () => {
+    if (sessionStarted) {
+      setSessionStarted(false)
+      setElapsedTime(0)
+    } else {
+      setSessionStarted(true)
+    }
+  }
+
+  const formatTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+    return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  }
+
   return (
     <div ref={containerRef} className="flex h-full flex-col bg-muted/30">
       {/* Toolbar */}
       <div className="flex items-center justify-between border-b bg-background px-4 py-3">
-        <h1 className="text-lg font-semibold">Digital Canvas</h1>
+        <div className="flex items-center gap-3">
+          <Button variant={sessionStarted ? "outline" : "default"} size="sm" onClick={toggleSession}>
+            {sessionStarted ? "End Session" : "Start Session"}
+          </Button>
+          {sessionStarted && (
+            <span className="text-sm font-medium text-foreground tabular-nums">{formatTime(elapsedTime)}</span>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <Button variant={mode === "draw" ? "default" : "outline"} size="sm" onClick={() => setMode("draw")}>
