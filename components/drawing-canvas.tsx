@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Pencil, Type, Eraser, Trash2, Download } from "lucide-react"
 import { useWebSocket } from "@/hooks/use-websocket"
+import { useSpeechTranscription } from "@/hooks/use-speech-transcription"
 
 export interface DrawingCanvasRef {
   exportAsImage: () => void
@@ -34,6 +35,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
   }, [])
 
   const { sendStateUpdate } = useWebSocket({ onLog: addLog, shouldConnect: sessionStarted })
+
+  // Initialize speech transcription
+  useSpeechTranscription({
+    sessionStarted,
+    sendStateUpdate,
+    onLog: addLog
+  })
 
   const getCompressedCanvasAsBase64 = useCallback(() => {
     const canvas = canvasRef.current
