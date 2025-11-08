@@ -2,10 +2,11 @@
 
 import type React from "react"
 
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Pencil, Type, Eraser, Trash2 } from "lucide-react"
+import { useWebSocket } from "@/hooks/use-websocket"
 
 export default function DrawingCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -17,7 +18,14 @@ export default function DrawingCanvas() {
   const [showTextInput, setShowTextInput] = useState(false)
   const [sessionStarted, setSessionStarted] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
-  const [logs, setLogs] = useState<string[]>([])
+  const [logs, setLogs] = useState<Array<{ message: string; color?: string }>>([])
+
+  const addLog = useCallback((message: string, color?: string) => {
+    const timestamp = new Date().toLocaleTimeString()
+    setLogs((prev) => [...prev, { message: `[${timestamp}] ${message}`, color }])
+  }, [])
+
+  useWebSocket({ onLog: addLog, shouldConnect: sessionStarted })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -167,11 +175,6 @@ export default function DrawingCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString()
-    setLogs((prev) => [...prev, `[${timestamp}] ${message}`])
-  }
-
   const toggleSession = () => {
     if (sessionStarted) {
       setSessionStarted(false)
@@ -297,7 +300,9 @@ export default function DrawingCanvas() {
       <div className="border-t bg-black px-4 py-2 h-48 overflow-y-auto">
         <div className="font-mono text-xs text-white space-y-1">
           {logs.map((log, index) => (
-            <div key={index}>{log}</div>
+            <div key={index} style={{ color: log.color || 'white' }}>
+              {log.message}
+            </div>
           ))}
         </div>
       </div>
