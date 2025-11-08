@@ -13,13 +13,13 @@ export default function Page() {
   return (
     <div className="h-screen w-full bg-background">
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        <ResizablePanel defaultSize={50} minSize={20}>
+        <ResizablePanel defaultSize={70} minSize={20}>
           <DrawingCanvas />
         </ResizablePanel>
 
         <ResizableHandle withHandle className="w-2 bg-border hover:bg-accent transition-colors" />
 
-        <ResizablePanel defaultSize={50} minSize={30}>
+        <ResizablePanel defaultSize={30} minSize={30}>
           <div className="flex flex-col h-full">
             <FileTree
               onFileSelect={setSelectedFile}
