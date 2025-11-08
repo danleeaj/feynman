@@ -26,6 +26,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
   const [sessionStarted, setSessionStarted] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [logs, setLogs] = useState<Array<{ message: string; color?: string }>>([])
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const addLog = useCallback((message: string, color?: string) => {
     const timestamp = new Date().toLocaleTimeString()
@@ -34,22 +35,48 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
 
   const { sendStateUpdate } = useWebSocket({ onLog: addLog, shouldConnect: sessionStarted })
 
-  // Send state updates periodically when session is active
-  useEffect(() => {
+  const getCompressedCanvasAsBase64 = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    // Create a temporary canvas at 50% resolution
+    const tempCanvas = document.createElement("canvas")
+    const tempCtx = tempCanvas.getContext("2d")
+    if (!tempCtx) return null
+
+    // Reduce dimensions by 50%
+    tempCanvas.width = canvas.width * 0.5
+    tempCanvas.height = canvas.height * 0.5
+
+    // Draw the original canvas scaled down
+    tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height)
+
+    // Return as JPEG with 70% quality for additional compression
+    return tempCanvas.toDataURL("image/jpeg", 0.7)
+  }, [])
+
+  const sendCanvasUpdate = useCallback(() => {
     if (!sessionStarted) return
 
-    const interval = setInterval(() => {
-      const canvasData = getCanvasAsBase64()
-      
-      sendStateUpdate({
-        canvas: canvasData || undefined,
-        transcript: undefined, // TODO: Add transcript when implemented
-        timestamp: Date.now()
-      })
-    }, 10000) // Send updates every 2 seconds
+    const canvasData = getCompressedCanvasAsBase64()
+    sendStateUpdate({
+      canvas: canvasData || undefined,
+      transcript: undefined,
+      timestamp: Date.now()
+    })
+  }, [sessionStarted, sendStateUpdate, getCompressedCanvasAsBase64])
 
-    return () => clearInterval(interval)
-  }, [sessionStarted, sendStateUpdate])
+  const scheduleCanvasUpdate = useCallback(() => {
+    // Clear any existing timeout
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current)
+    }
+
+    // Schedule new update after 3 seconds of inactivity
+    updateTimeoutRef.current = setTimeout(() => {
+      sendCanvasUpdate()
+    }, 3000)
+  }, [sendCanvasUpdate])
 
   useImperativeHandle(ref, () => ({
     exportAsImage,
@@ -176,15 +203,10 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
 
   const stopDrawing = () => {
     setIsDrawing(false)
-    
-    // Send immediate state update after drawing
+
+    // Schedule update after 3 seconds of inactivity
     if (sessionStarted) {
-      const canvasData = getCanvasAsBase64()
-      sendStateUpdate({
-        canvas: canvasData || undefined,
-        transcript: undefined,
-        timestamp: Date.now()
-      })
+      scheduleCanvasUpdate()
     }
   }
 
@@ -204,6 +226,11 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
     setTextInput("")
     setShowTextInput(false)
     setTextPosition(null)
+
+    // Schedule update after adding text
+    if (sessionStarted) {
+      scheduleCanvasUpdate()
+    }
   }
 
   const clearCanvas = () => {
@@ -222,13 +249,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
 
     // Export as PNG data URL
     const dataURL = canvas.toDataURL("image/png")
-    
+
     // Download the image
     const link = document.createElement("a")
     link.download = `drawing-${Date.now()}.png`
     link.href = dataURL
     link.click()
-    
+
     addLog("Canvas exported as image", "#00ff00")
   }
 
