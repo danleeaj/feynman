@@ -17,6 +17,7 @@ export default function DrawingCanvas() {
   const [showTextInput, setShowTextInput] = useState(false)
   const [sessionStarted, setSessionStarted] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
+  const [logs, setLogs] = useState<string[]>([])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -145,12 +146,19 @@ export default function DrawingCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
+  const addLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString()
+    setLogs((prev) => [...prev, `[${timestamp}] ${message}`])
+  }
+
   const toggleSession = () => {
     if (sessionStarted) {
       setSessionStarted(false)
       setElapsedTime(0)
+      addLog("Session ended")
     } else {
       setSessionStarted(true)
+      addLog("Session started")
     }
   }
 
@@ -262,6 +270,15 @@ export default function DrawingCanvas() {
         {mode === "draw" && "Press and hold to draw on the canvas"}
         {mode === "text" && "Click anywhere on the canvas to add text"}
         {mode === "erase" && "Press and hold to erase parts of your drawing"}
+      </div>
+
+      {/* Console */}
+      <div className="border-t bg-black px-4 py-2 h-48 overflow-y-auto">
+        <div className="font-mono text-xs text-white space-y-1">
+          {logs.map((log, index) => (
+            <div key={index}>{log}</div>
+          ))}
+        </div>
       </div>
     </div>
   )
