@@ -28,15 +28,36 @@ export default function DrawingCanvas() {
     if (!ctx) return
 
     const resizeCanvas = () => {
-      // Save current canvas content
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const dpr = window.devicePixelRatio || 1
 
-      // Resize canvas
-      canvas.width = container.offsetWidth
-      canvas.height = container.offsetHeight
+      // Save current canvas content
+      const tempCanvas = document.createElement("canvas")
+      const tempCtx = tempCanvas.getContext("2d")
+      if (tempCtx) {
+        tempCanvas.width = canvas.width
+        tempCanvas.height = canvas.height
+        tempCtx.drawImage(canvas, 0, 0)
+      }
+
+      // Set display size
+      const displayWidth = container.offsetWidth
+      const displayHeight = container.offsetHeight
+
+      // Set actual canvas size (accounting for device pixel ratio)
+      canvas.width = displayWidth * dpr
+      canvas.height = displayHeight * dpr
+
+      // Set display size via CSS
+      canvas.style.width = `${displayWidth}px`
+      canvas.style.height = `${displayHeight}px`
+
+      // Scale context to match device pixel ratio
+      ctx.scale(dpr, dpr)
 
       // Restore canvas content
-      ctx.putImageData(imageData, 0, 0)
+      if (tempCtx) {
+        ctx.drawImage(tempCanvas, 0, 0)
+      }
 
       // Reset drawing styles after resize
       ctx.lineCap = "round"
@@ -211,7 +232,7 @@ export default function DrawingCanvas() {
       <div className="relative flex-1 overflow-hidden">
         <canvas
           ref={canvasRef}
-          className="h-full w-full cursor-crosshair bg-white"
+          className="cursor-crosshair bg-white"
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
