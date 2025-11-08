@@ -1,3 +1,3 @@
 # Ghost of Feynman
 
-The Ghost of Feynman will supervise you as you study.
+The Ghost of Feynman will supervise you as you study!
