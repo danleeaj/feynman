@@ -10,6 +10,12 @@ interface UseWebSocketProps {
   shouldConnect?: boolean
 }
 
+export interface CurrentState {
+  canvas?: string // base64 image
+  transcript?: string
+  timestamp: number
+}
+
 export function useWebSocket({ onLog, shouldConnect = true }: UseWebSocketProps = {}) {
   const [isConnected, setIsConnected] = useState(false)
   const [lastMessage, setLastMessage] = useState<string | null>(null)
@@ -80,9 +86,23 @@ export function useWebSocket({ onLog, shouldConnect = true }: UseWebSocketProps 
     }
   }
 
+  const sendStateUpdate = (state: CurrentState) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      const message = JSON.stringify({
+        type: 'state_update',
+        data: state
+      })
+      wsRef.current.send(message)
+      onLog?.(`State update sent (canvas: ${state.canvas ? 'yes' : 'no'}, transcript: ${state.transcript ? 'yes' : 'no'})`, '#00aaff')
+    } else {
+      console.warn('WebSocket is not connected')
+    }
+  }
+
   return {
     isConnected,
     lastMessage,
     sendMessage,
+    sendStateUpdate,
   }
 }

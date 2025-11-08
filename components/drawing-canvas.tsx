@@ -32,7 +32,24 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
     setLogs((prev) => [...prev, { message: `[${timestamp}] ${message}`, color }])
   }, [])
 
-  useWebSocket({ onLog: addLog, shouldConnect: sessionStarted })
+  const { sendStateUpdate } = useWebSocket({ onLog: addLog, shouldConnect: sessionStarted })
+
+  // Send state updates periodically when session is active
+  useEffect(() => {
+    if (!sessionStarted) return
+
+    const interval = setInterval(() => {
+      const canvasData = getCanvasAsBase64()
+      
+      sendStateUpdate({
+        canvas: canvasData || undefined,
+        transcript: undefined, // TODO: Add transcript when implemented
+        timestamp: Date.now()
+      })
+    }, 10000) // Send updates every 2 seconds
+
+    return () => clearInterval(interval)
+  }, [sessionStarted, sendStateUpdate])
 
   useImperativeHandle(ref, () => ({
     exportAsImage,
@@ -159,6 +176,16 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
 
   const stopDrawing = () => {
     setIsDrawing(false)
+    
+    // Send immediate state update after drawing
+    if (sessionStarted) {
+      const canvasData = getCanvasAsBase64()
+      sendStateUpdate({
+        canvas: canvasData || undefined,
+        transcript: undefined,
+        timestamp: Date.now()
+      })
+    }
   }
 
   const addText = () => {
