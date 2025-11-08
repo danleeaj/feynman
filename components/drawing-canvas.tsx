@@ -2,13 +2,20 @@
 
 import type React from "react"
 
-import { useRef, useState, useEffect, useCallback } from "react"
+import { useRef, useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Pencil, Type, Eraser, Trash2 } from "lucide-react"
+import { Pencil, Type, Eraser, Trash2, Download } from "lucide-react"
 import { useWebSocket } from "@/hooks/use-websocket"
 
-export default function DrawingCanvas() {
+export interface DrawingCanvasRef {
+  exportAsImage: () => void
+  getCanvasAsBase64: () => string | null
+  getCanvasAsBlob: () => Promise<Blob | null>
+  clearCanvas: () => void
+}
+
+const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
@@ -26,6 +33,13 @@ export default function DrawingCanvas() {
   }, [])
 
   useWebSocket({ onLog: addLog, shouldConnect: sessionStarted })
+
+  useImperativeHandle(ref, () => ({
+    exportAsImage,
+    getCanvasAsBase64,
+    getCanvasAsBlob,
+    clearCanvas,
+  }))
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -175,6 +189,42 @@ export default function DrawingCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
+  const exportAsImage = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    // Export as PNG data URL
+    const dataURL = canvas.toDataURL("image/png")
+    
+    // Download the image
+    const link = document.createElement("a")
+    link.download = `drawing-${Date.now()}.png`
+    link.href = dataURL
+    link.click()
+    
+    addLog("Canvas exported as image", "#00ff00")
+  }
+
+  const getCanvasAsBase64 = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    // Returns base64 string that can be sent to image models
+    return canvas.toDataURL("image/png")
+  }
+
+  const getCanvasAsBlob = async (): Promise<Blob | null> => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    // Returns a Blob that can be uploaded or sent in FormData
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        resolve(blob)
+      }, "image/png")
+    })
+  }
+
   const toggleSession = () => {
     if (sessionStarted) {
       setSessionStarted(false)
@@ -223,6 +273,11 @@ export default function DrawingCanvas() {
           </Button>
 
           <div className="mx-2 h-6 w-px bg-border" />
+
+          <Button variant="outline" size="sm" onClick={exportAsImage}>
+            <Download className="h-4 w-4" />
+            <span className="ml-2">Export</span>
+          </Button>
 
           <Button variant="outline" size="sm" onClick={clearCanvas}>
             <Trash2 className="h-4 w-4" />
@@ -308,4 +363,8 @@ export default function DrawingCanvas() {
       </div>
     </div>
   )
-}
+})
+
+DrawingCanvas.displayName = "DrawingCanvas"
+
+export default DrawingCanvas
