@@ -1,0 +1,233 @@
+"use client"
+
+import type React from "react"
+
+import { useRef, useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Pencil, Type, Eraser, Trash2 } from "lucide-react"
+
+export default function DrawingCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [mode, setMode] = useState<"draw" | "text" | "erase">("draw")
+  const [textInput, setTextInput] = useState("")
+  const [textPosition, setTextPosition] = useState<{ x: number; y: number } | null>(null)
+  const [showTextInput, setShowTextInput] = useState(false)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const container = containerRef.current
+    if (!canvas || !container) return
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    const resizeCanvas = () => {
+      // Save current canvas content
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+      // Resize canvas
+      canvas.width = container.offsetWidth
+      canvas.height = container.offsetHeight
+
+      // Restore canvas content
+      ctx.putImageData(imageData, 0, 0)
+
+      // Reset drawing styles after resize
+      ctx.lineCap = "round"
+      ctx.lineJoin = "round"
+      ctx.lineWidth = 2
+      ctx.strokeStyle = "#000000"
+    }
+
+    // Initial size
+    resizeCanvas()
+
+    // Watch for resize
+    const resizeObserver = new ResizeObserver(resizeCanvas)
+    resizeObserver.observe(container)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [])
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const x = "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
+    const y = "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
+
+    if (mode === "text") {
+      setTextPosition({ x, y })
+      setShowTextInput(true)
+      return
+    }
+
+    setIsDrawing(true)
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+  }
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || mode === "text") return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    const rect = canvas.getBoundingClientRect()
+    const x = "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
+    const y = "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
+
+    if (mode === "erase") {
+      ctx.globalCompositeOperation = "destination-out"
+      ctx.lineWidth = 20
+    } else {
+      ctx.globalCompositeOperation = "source-over"
+      ctx.lineWidth = 2
+    }
+
+    ctx.lineTo(x, y)
+    ctx.stroke()
+  }
+
+  const stopDrawing = () => {
+    setIsDrawing(false)
+  }
+
+  const addText = () => {
+    if (!textInput || !textPosition) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    ctx.font = "20px Geist, sans-serif"
+    ctx.fillStyle = "#000000"
+    ctx.fillText(textInput, textPosition.x, textPosition.y)
+
+    setTextInput("")
+    setShowTextInput(false)
+    setTextPosition(null)
+  }
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  }
+
+  return (
+    <div ref={containerRef} className="flex h-full flex-col bg-muted/30">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between border-b bg-background px-4 py-3">
+        <h1 className="text-lg font-semibold">Digital Canvas</h1>
+
+        <div className="flex items-center gap-2">
+          <Button variant={mode === "draw" ? "default" : "outline"} size="sm" onClick={() => setMode("draw")}>
+            <Pencil className="h-4 w-4" />
+            <span className="ml-2">Draw</span>
+          </Button>
+
+          <Button variant={mode === "text" ? "default" : "outline"} size="sm" onClick={() => setMode("text")}>
+            <Type className="h-4 w-4" />
+            <span className="ml-2">Text</span>
+          </Button>
+
+          <Button variant={mode === "erase" ? "default" : "outline"} size="sm" onClick={() => setMode("erase")}>
+            <Eraser className="h-4 w-4" />
+            <span className="ml-2">Erase</span>
+          </Button>
+
+          <div className="mx-2 h-6 w-px bg-border" />
+
+          <Button variant="outline" size="sm" onClick={clearCanvas}>
+            <Trash2 className="h-4 w-4" />
+            <span className="ml-2">Clear</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Canvas */}
+      <div className="relative flex-1 overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className="h-full w-full cursor-crosshair bg-white"
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={stopDrawing}
+        />
+
+        {/* Text Input Popup */}
+        {showTextInput && textPosition && (
+          <div
+            className="absolute rounded-md border bg-background p-3 shadow-lg"
+            style={{
+              left: textPosition.x,
+              top: textPosition.y,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <Input
+                type="text"
+                placeholder="Enter text..."
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    addText()
+                  } else if (e.key === "Escape") {
+                    setShowTextInput(false)
+                    setTextInput("")
+                  }
+                }}
+                autoFocus
+                className="w-48"
+              />
+              <Button size="sm" onClick={addText}>
+                Add
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setShowTextInput(false)
+                  setTextInput("")
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Instructions */}
+      <div className="border-t bg-background px-4 py-2 text-center text-sm text-muted-foreground">
+        {mode === "draw" && "Press and hold to draw on the canvas"}
+        {mode === "text" && "Click anywhere on the canvas to add text"}
+        {mode === "erase" && "Press and hold to erase parts of your drawing"}
+      </div>
+    </div>
+  )
+}
