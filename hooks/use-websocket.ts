@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
-const WS_URL = 'wss://feynman-server-hs0d.onrender.com/ws'
+// const WS_URL = 'wss://feynman-server-hs0d.onrender.com/ws'
 
 // This is for local dev purposes:
-// const WS_URL = 'ws://0.0.0.0:10000/ws'
+const WS_URL = 'ws://0.0.0.0:10000/ws'
 
 interface UseWebSocketProps {
   onLog?: (message: string, color?: string) => void
