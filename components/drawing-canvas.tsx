@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Pencil, Type, Eraser, Trash2, Download } from "lucide-react"
 import { useWebSocket } from "@/hooks/use-websocket"
 import { useSpeechTranscription } from "@/hooks/use-speech-transcription"
+import { useConversation } from "@elevenlabs/react"
 
 export interface DrawingCanvasRef {
   exportAsImage: () => void
@@ -41,6 +42,28 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
     sessionStarted,
     sendStateUpdate,
     onLog: addLog
+  })
+
+  // Initialize ElevenLabs conversation
+  const conversation = useConversation({
+    onConnect: () => {
+      addLog("ElevenLabs: Connected to agent", "#00ff00")
+    },
+    onDisconnect: () => {
+      addLog("ElevenLabs: Disconnected from agent", "#ff9900")
+    },
+    onMessage: (message) => {
+      addLog(`ElevenLabs: ${message.type} - ${JSON.stringify(message)}`, "#00aaff")
+    },
+    onError: (error) => {
+      addLog(`ElevenLabs Error: ${error}`, "#ff0000")
+    },
+    onModeChange: (mode) => {
+      addLog(`ElevenLabs: Mode changed to ${mode.mode}`, "#ffff00")
+    },
+    onStatusChange: (status) => {
+      addLog(`ElevenLabs: Status changed to ${status.status}`, "#ffff00")
+    },
   })
 
   const getCompressedCanvasAsBase64 = useCallback(() => {
@@ -296,14 +319,39 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
     })
   }
 
-  const toggleSession = () => {
+  const toggleSession = async () => {
     if (sessionStarted) {
+      // End the session
+      await conversation.endSession()
       setSessionStarted(false)
       setElapsedTime(0)
       addLog("Session ended")
     } else {
-      setSessionStarted(true)
-      addLog("Session started")
+      // Start the session
+      const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID
+      
+      if (!agentId) {
+        addLog("Error: NEXT_PUBLIC_ELEVENLABS_AGENT_ID not configured", "#ff0000")
+        return
+      }
+
+      try {
+        addLog("Requesting microphone access...")
+        // Request microphone permission
+        await navigator.mediaDevices.getUserMedia({ audio: true })
+        addLog("Microphone access granted", "#00ff00")
+
+        addLog("Starting ElevenLabs conversation...")
+        const conversationId = await conversation.startSession({
+          agentId,
+          connectionType: "webrtc", // or "websocket"
+        })
+        
+        addLog(`ElevenLabs conversation started: ${conversationId}`, "#00ff00")
+        setSessionStarted(true)
+      } catch (error) {
+        addLog(`Failed to start session: ${error}`, "#ff0000")
+      }
     }
   }
 
