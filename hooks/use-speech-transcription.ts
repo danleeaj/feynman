@@ -114,7 +114,7 @@ export function useSpeechTranscription({
         // Log transcript chunks to console
         if (finalTranscript) {
           onLogRef.current?.(`[FINAL] ${finalTranscript.trim()}`, '#00aaff')
-          
+
           // Send final transcript to WebSocket
           sendStateUpdateRef.current({
             transcript: finalTranscript.trim(),
@@ -127,7 +127,7 @@ export function useSpeechTranscription({
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         onLogRef.current?.(`Speech recognition error: ${event.error}`, '#ff0000')
-        
+
         // Restart on certain errors
         if (event.error === 'no-speech' || event.error === 'audio-capture') {
           setTimeout(() => {
@@ -140,7 +140,7 @@ export function useSpeechTranscription({
 
       recognition.onend = () => {
         onLogRef.current?.('Speech recognition ended', '#ffaa00')
-        
+
         // Restart if session is still active
         if (isListeningRef.current && sessionStartedRef.current) {
           setTimeout(() => {
