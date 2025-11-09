@@ -36,7 +36,6 @@ export function useWebSocket({ onLog, shouldConnect = true }: UseWebSocketProps 
     wsRef.current = ws
 
     ws.onopen = () => {
-      console.log('WebSocket connected')
       setIsConnected(true)
     }
 
@@ -44,18 +43,6 @@ export function useWebSocket({ onLog, shouldConnect = true }: UseWebSocketProps 
       try {
         const data = JSON.parse(event.data)
         setLastMessage(event.data)
-
-        // Debug: log the actual message structure
-        console.log('WebSocket message received:', data)
-
-        if (data.type === 'ping') {
-          onLog?.(data.body || JSON.stringify(data), 'yellow')
-        } else if (data.type === 'message') {
-          onLog?.(data.body || JSON.stringify(data), 'white')
-        } else {
-          // Log unknown message types
-          onLog?.(`Unknown message type: ${JSON.stringify(data)}`, 'gray')
-        }
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error)
       }
@@ -66,7 +53,6 @@ export function useWebSocket({ onLog, shouldConnect = true }: UseWebSocketProps 
     }
 
     ws.onclose = () => {
-      console.log('WebSocket disconnected')
       setIsConnected(false)
     }
 
@@ -93,7 +79,6 @@ export function useWebSocket({ onLog, shouldConnect = true }: UseWebSocketProps 
         data: state
       })
       wsRef.current.send(message)
-      onLog?.(`State update sent (canvas: ${state.canvas ? 'yes' : 'no'}, transcript: ${state.transcript ? 'yes' : 'no'})`, '#00aaff')
     } else {
       console.warn('WebSocket is not connected')
     }

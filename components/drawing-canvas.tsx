@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Pencil, Type, Eraser, Trash2, Download } from "lucide-react"
 import { useWebSocket } from "@/hooks/use-websocket"
-import { useSpeechTranscription } from "@/hooks/use-speech-transcription"
 import { useConversation } from "@elevenlabs/react"
 
 export interface DrawingCanvasRef {
@@ -37,13 +36,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
 
   const { sendStateUpdate } = useWebSocket({ onLog: addLog, shouldConnect: sessionStarted })
 
-  // Initialize speech transcription
-  useSpeechTranscription({
-    sessionStarted,
-    sendStateUpdate,
-    onLog: addLog
-  })
-
   // Initialize ElevenLabs conversation
   const conversation = useConversation({
     onConnect: () => {
@@ -57,12 +49,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
     },
     onError: (error) => {
       addLog(`ElevenLabs Error: ${error}`, "#ff0000")
-    },
-    onModeChange: (mode) => {
-      addLog(`ElevenLabs: Mode changed to ${mode.mode}`, "#ffff00")
-    },
-    onStatusChange: (status) => {
-      addLog(`ElevenLabs: Status changed to ${status.status}`, "#ffff00")
     },
   })
 
