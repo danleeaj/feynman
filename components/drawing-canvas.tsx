@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Pencil, Type, Eraser, Trash2, Download } from "lucide-react"
 import { useWebSocket } from "@/hooks/use-websocket"
 import { useConversation } from "@elevenlabs/react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export interface DrawingCanvasRef {
   exportAsImage: () => void
@@ -27,14 +34,34 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
   const [sessionStarted, setSessionStarted] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [logs, setLogs] = useState<Array<{ message: string; color?: string }>>([])
+  const [showEndSessionModal, setShowEndSessionModal] = useState(false)
+  const [sessionDuration, setSessionDuration] = useState(0)
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const sessionStartTimeRef = useRef<number | null>(null)
 
   const addLog = useCallback((message: string, color?: string) => {
     const timestamp = new Date().toLocaleTimeString()
     setLogs((prev) => [...prev, { message: `[${timestamp}] ${message}`, color }])
   }, [])
 
-  const { sendStateUpdate } = useWebSocket({ onLog: addLog, shouldConnect: sessionStarted })
+  const handleWebSocketDisconnect = useCallback(() => {
+    if (sessionStarted && sessionStartTimeRef.current) {
+      const duration = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000)
+      setSessionDuration(duration)
+      addLog(`WebSocket disconnected (duration: ${formatTime(duration)})`, "#ff9900")
+      
+      // Show modal only if session lasted more than 15 seconds
+      if (duration > 15) {
+        setShowEndSessionModal(true)
+      }
+    }
+  }, [sessionStarted, addLog])
+
+  const { sendStateUpdate } = useWebSocket({ 
+    onLog: addLog, 
+    shouldConnect: sessionStarted,
+    onDisconnect: handleWebSocketDisconnect
+  })
 
   // Initialize ElevenLabs conversation
   const conversation = useConversation({
@@ -310,8 +337,21 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
       // End the session
       await conversation.endSession()
       setSessionStarted(false)
+      
+      // Calculate session duration
+      const duration = sessionStartTimeRef.current 
+        ? Math.floor((Date.now() - sessionStartTimeRef.current) / 1000)
+        : 0
+      
+      setSessionDuration(duration)
+      sessionStartTimeRef.current = null
       setElapsedTime(0)
-      addLog("Session ended")
+      addLog(`Session ended (duration: ${formatTime(duration)})`)
+      
+      // Show modal only if session lasted more than 15 seconds
+      if (duration > 15) {
+        setShowEndSessionModal(true)
+      }
     } else {
       // Start the session
       const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID
@@ -334,6 +374,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
         })
         
         addLog(`ElevenLabs conversation started: ${conversationId}`, "#00ff00")
+        sessionStartTimeRef.current = Date.now()
         setSessionStarted(true)
       } catch (error) {
         addLog(`Failed to start session: ${error}`, "#ff0000")
@@ -466,6 +507,34 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef>((props, ref) => {
           ))}
         </div>
       </div>
+
+      {/* End Session Modal */}
+      <Dialog open={showEndSessionModal} onOpenChange={setShowEndSessionModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Session Ended</DialogTitle>
+            <DialogDescription>
+              Your session has ended after {formatTime(sessionDuration)}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Thank you for using the interactive canvas. Your session lasted {formatTime(sessionDuration)}.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowEndSessionModal(false)}>
+                Close
+              </Button>
+              <Button onClick={() => {
+                setShowEndSessionModal(false)
+                toggleSession()
+              }}>
+                Start New Session
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 })

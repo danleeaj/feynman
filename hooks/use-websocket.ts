@@ -8,6 +8,7 @@ const WS_URL = 'wss://feynman-server-hs0d.onrender.com/ws'
 interface UseWebSocketProps {
   onLog?: (message: string, color?: string) => void
   shouldConnect?: boolean
+  onDisconnect?: () => void
 }
 
 export interface CurrentState {
@@ -16,10 +17,16 @@ export interface CurrentState {
   timestamp: number
 }
 
-export function useWebSocket({ onLog, shouldConnect = true }: UseWebSocketProps = {}) {
+export function useWebSocket({ onLog, shouldConnect = true, onDisconnect }: UseWebSocketProps = {}) {
   const [isConnected, setIsConnected] = useState(false)
   const [lastMessage, setLastMessage] = useState<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const onDisconnectRef = useRef(onDisconnect)
+
+  // Keep ref in sync
+  useEffect(() => {
+    onDisconnectRef.current = onDisconnect
+  }, [onDisconnect])
 
   useEffect(() => {
     if (!shouldConnect) {
@@ -54,6 +61,7 @@ export function useWebSocket({ onLog, shouldConnect = true }: UseWebSocketProps 
 
     ws.onclose = () => {
       setIsConnected(false)
+      onDisconnectRef.current?.()
     }
 
     // Cleanup: disconnect when component unmounts or shouldConnect changes
