@@ -1,3 +1,3 @@
-# Ghost of Feynman
+# feynman
 
-The Ghost of Feynman will supervise you as you study!
+> _We'll ask you questions as you study!_
